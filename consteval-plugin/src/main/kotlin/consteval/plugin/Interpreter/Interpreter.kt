@@ -1,4 +1,4 @@
-package sample.plugin.interpreter
+package consteval.plugin.interpreter
 
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.IrElement
@@ -48,7 +48,7 @@ class Interpreter(
 			logger.reportWarning("Step limi exsceeded while evaluating const function")
 			return null
 		} catch (e: InterpreterException) {
-			// Should be unreachable
+			// The ir is semantically correct, therefore other exceptions should not occur
 			return null
 		}
 	}
@@ -60,6 +60,8 @@ class Interpreter(
 	}
 
 	override fun visitConst(expression: IrConst<*>, data: Scope): Value {
+		// That's the first appearance of this line
+		// Perhaps there is a cleaner way, but this will do for a test
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
 		return expression
 	}
@@ -83,11 +85,9 @@ class Interpreter(
 	override fun visitGetValue(expression: IrGetValue, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
 		val value = data[expression.symbol.owner.name]
-		if (value == null) {
+		if (value == null)
 			throw InterpreterException.NonConstOperation("non-constant value")
-		} else {
-			return value
-		}
+		return value
 	}
 
 	override fun visitSetValue(expression: IrSetValue, data: Scope): Value {
@@ -100,6 +100,8 @@ class Interpreter(
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
 		for (branch in expression.branches) {
 			val pred = branch.condition.accept(this, data)
+			// Kind should not be anything but Boolean, as the ir was type checked
+			// Leaving it just in case
 			if (pred.kind == IrConstKind.Boolean && pred.value as Boolean)
 				return branch.result.accept(this, Scope(data))
 		}
@@ -118,7 +120,7 @@ class Interpreter(
 		}
 		else -> {
 			logger.reportWarning("Type operation not supported: $op")
-			throw InterpreterException.NonConstOperation("unsupported coercion")
+			throw InterpreterException.NonConstOperation("unsupported type operation")
 		}
 	}
 
@@ -158,10 +160,10 @@ class Interpreter(
 		val args = Scope(data).apply {
 			expression.dispatchReceiver
 				?.accept(visitor, data)
-				?.also { put(Name.identifier("\$this"), it) }
-			// call.extensionReceiver
-			// 	?.accept(visitor, scope)
-			// 	?.also { put("", it) }
+				?.also { put(Name.special("<this>"), it) }
+			expression.extensionReceiver
+				?.accept(visitor, data)
+				?.also { put(Name.special("<this>"), it) }
 			
 			for (i in 0..<expression.valueArgumentsCount) {
 				val arg =
@@ -183,17 +185,17 @@ class Interpreter(
 
 	override fun visitExpressionBody(body: IrExpressionBody, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
-		return body.expression.accept(this, data)
+		return body.expression.accept(this, Scope(data))
 	}
 
 	override fun visitBlockBody(body: IrBlockBody, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
-		return interpretStatements(body, data)
+		return interpretStatements(body, Scope(data))
 	}
 
 	override fun visitBlock(expression: IrBlock, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
-		return interpretStatements(expression, data)
+		return interpretStatements(expression, Scope(data))
 	}
 
 	private fun interpretStatements(block: IrStatementContainer, scope: Scope): Value {
@@ -268,7 +270,7 @@ class Interpreter(
 		val builtInRes = interpretBuiltIn(declaration, data)
 		if (builtInRes != null) return builtInRes
 		
-		if (!declaration.name.identifier.startsWith(prefix))
+		if (!declaration.name.asString().startsWith(prefix) && !declaration.name.isSpecial)
 			throw InterpreterException.NonConstOperation("non-const function called")
 
 		return declaration.body?.accept(this, data) ?: with(declaration) {

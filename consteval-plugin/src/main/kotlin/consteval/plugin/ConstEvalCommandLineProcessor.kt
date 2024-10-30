@@ -1,4 +1,4 @@
-package sample.plugin
+package consteval.plugin
 
 import com.google.auto.service.AutoService
 import org.jetbrains.kotlin.compiler.plugin.*
@@ -11,10 +11,12 @@ class ConstEvalCommandLineProcessor : CommandLineProcessor {
 	companion object {
 		private const val OPTION_STEP_LIMIT = "stepLimit"
 		private const val OPTION_PREFIX		= "prefix"
+		private const val OPTION_LEVEL      = "level"
 		private const val OPTION_DUMP       = "dump"
 
 		val ARG_STEP_LIMIT	= CompilerConfigurationKey<UInt>(OPTION_STEP_LIMIT)
 		val ARG_PREFIX		= CompilerConfigurationKey<String>(OPTION_PREFIX)
+		val ARG_LEVEL		= CompilerConfigurationKey<String>(OPTION_LEVEL)
 		val ARG_DUMP		= CompilerConfigurationKey<Boolean>(OPTION_DUMP)
 	}
 
@@ -33,11 +35,23 @@ class ConstEvalCommandLineProcessor : CommandLineProcessor {
 			required = false,
 		),
 		CliOption(
+			optionName = OPTION_LEVEL,
+			valueDescription = "logging level",
+			description = "Logging level, default \"warning\"",
+			required=false,
+		),
+		CliOption(
 			optionName = OPTION_DUMP,
 			valueDescription = "boolean",
 			description = "Set true to dump ir after transformation, default=true",
 			required=false
 		)
+	)
+
+	val logLevels = listOf(
+		"warning",
+		"info",
+		"debug",
 	)
 
 	override fun processOption(
@@ -47,6 +61,9 @@ class ConstEvalCommandLineProcessor : CommandLineProcessor {
 	) = when (option.optionName) {
 		OPTION_STEP_LIMIT	-> configuration.put(ARG_STEP_LIMIT, value.toUInt())
 		OPTION_PREFIX		-> configuration.put(ARG_PREFIX, value)
+		OPTION_LEVEL		->
+			if (value in logLevels) { configuration.put(ARG_LEVEL, value) }
+			else { throw IllegalArgumentException("Unexpected value for logging level: ${value}") }
 		OPTION_DUMP			-> configuration.put(ARG_DUMP, value.toBoolean())
 		else				-> throw IllegalArgumentException("Unexpected config option: ${option.optionName}")
 	}
