@@ -9,6 +9,9 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.ir.util.dump
 
+import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+// import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 
@@ -29,11 +32,11 @@ class ConstEvalPlugin(
 		val interpreter = Interpreter(logger, pluginContext.irBuiltIns, stepLimit, prefix)
 
 		val constEvalPass = ConstEvalPass(logger, interpreter, prefix)
-		val constPropPass = ConstPropPass(logger, interpreter)
+		// val constPropPass = ConstPropPass(logger, interpreter)
 
 		for (_i in 0..<1) {
 			moduleFragment.transform(constEvalPass, null)
-			moduleFragment.accept(constPropPass, null)
+			// moduleFragment.accept(constPropPass, null)
 		}
 
 		if (dump)
@@ -41,6 +44,7 @@ class ConstEvalPlugin(
 	}
 }
 
+@OptIn(UnsafeDuringIrConstructionAPI::class)
 internal class ConstEvalPass(
 	private val logger: MessageCollector,
 	private val interpreter: Interpreter,
@@ -59,49 +63,49 @@ internal class ConstEvalPass(
 	}
 }
 
-internal class ConstPropPass(
-	private val logger: MessageCollector,
-	private val interpreter: Interpreter,
-) : IrElementVisitorVoid {
+// internal class ConstPropPass(
+// 	private val logger: MessageCollector,
+// 	private val interpreter: Interpreter,
+// ) : IrElementVisitorVoid {
 
-	override fun visitElement(element: IrElement) =
-		element.acceptChildrenVoid(this)
+// 	override fun visitElement(element: IrElement) =
+// 		element.acceptChildrenVoid(this)
 
-	override fun visitBlock(expression: IrBlock) {
-		logger.report(CompilerMessageSeverity.WARNING, "Block visited")
-		visitStatements(expression)
-	}
+// 	override fun visitBlock(expression: IrBlock) {
+// 		logger.report(CompilerMessageSeverity.WARNING, "Block visited")
+// 		visitStatements(expression)
+// 	}
 
-	override fun visitBlockBody(body: IrBlockBody) {
-		logger.report(CompilerMessageSeverity.WARNING, "Block body visited")
-		visitStatements(body)
-	}
+// 	override fun visitBlockBody(body: IrBlockBody) {
+// 		logger.report(CompilerMessageSeverity.WARNING, "Block body visited")
+// 		visitStatements(body)
+// 	}
 
-	private fun visitStatements(block: IrStatementContainer) {
-		var scope = Scope()
+// 	private fun visitStatements(block: IrStatementContainer) {
+// 		var scope = Scope()
 
-		for (statement in block.statements) {
-			when (statement) {
-				is IrVariable -> {
-					val name = statement.symbol.owner.name
-					statement.initializer
-						?.let { interpreter.interpret(it, scope) }
-						?.also { scope[name] = it }
-				}
-				is IrGetValue -> {
-					val name = statement.symbol.owner.name
-					if (name in scope) {
-						statement.run {
-							this = scope[name]!!
-						}
-					}
-				}
-				is IrLoop ->
-					// Do not even try to const-eval loops
-					break
-				else -> break
-			}
-		}
-	}
-}
+// 		for (statement in block.statements) {
+// 			when (statement) {
+// 				is IrVariable -> {
+// 					val name = statement.symbol.owner.name
+// 					statement.initializer
+// 						?.let { interpreter.interpret(it, scope) }
+// 						?.also { scope[name] = it }
+// 				}
+// 				is IrGetValue -> {
+// 					val name = statement.symbol.owner.name
+// 					if (name in scope) {
+// 						statement.run {
+// 							this = scope[name]!!
+// 						}
+// 					}
+// 				}
+// 				is IrLoop ->
+// 					// Do not even try to const-eval loops
+// 					break
+// 				else -> break
+// 			}
+// 		}
+// 	}
+// }
 

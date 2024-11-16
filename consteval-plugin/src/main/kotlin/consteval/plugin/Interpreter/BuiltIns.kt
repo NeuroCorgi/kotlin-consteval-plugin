@@ -223,11 +223,36 @@ fun Interpreter.interpretBuiltIn(func: IrFunction, args: Scope): Value? = when (
 			}
 		}
 	}
+	Name.identifier("lessOrEqual") -> {
+		val lhs = args[Name.identifier("arg0")]
+		val rhs = args[Name.identifier("arg1")]
+		if (lhs == null || rhs == null) {
+			null
+		} else {
+			when (lhs.kind) {
+				IrConstKind.Int ->
+					when (rhs.kind) {
+						IrConstKind.Int ->
+							IrConstImpl.boolean(func.startOffset, func.endOffset, irBuiltIns.booleanType, (lhs.value as Int) <= (rhs.value as Int))
+						else -> null
+					}
+				else -> null
+			}
+		}
+	}
 	Name.identifier("inc") -> args[Name.special("<this>")]?.run {
 		when (kind) {
 			IrConstKind.Int -> IrConstImpl.int(startOffset, endOffset, irBuiltIns.intType, (value as Int).inc())
 			IrConstKind.Long -> IrConstImpl.long(startOffset, endOffset, irBuiltIns.longType, (value as Long).inc())
 			IrConstKind.Short -> IrConstImpl.short(startOffset, endOffset, irBuiltIns.shortType, (value as Short).inc())
+			else -> null
+		}
+	}
+	Name.identifier("dec") -> args[Name.special("<this>")]?.run {
+		when (kind) {
+			IrConstKind.Int -> IrConstImpl.int(startOffset, endOffset, irBuiltIns.intType, (value as Int).dec())
+			IrConstKind.Long -> IrConstImpl.long(startOffset, endOffset, irBuiltIns.longType, (value as Long).dec())
+			IrConstKind.Short -> IrConstImpl.short(startOffset, endOffset, irBuiltIns.shortType, (value as Short).dec())
 			else -> null
 		}
 	}

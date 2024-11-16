@@ -15,7 +15,11 @@ class Scope(private val parent: Scope? = null) {
 		put(key, value)
 	
 	fun put(key: Name, value: IrConst<*>) {
-		mapping[key] = value
+		if (parent != null && parent.contains(key)) {
+			parent[key] = value
+		} else {
+			mapping[key] = value
+		}
 	}
 
 	override fun toString(): String {

@@ -9,6 +9,8 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
+import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+
 import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.util.dump
 
@@ -29,6 +31,7 @@ private sealed class InterpreterException: Exception() {
 	class BreakContinue(val statement: IrBreakContinue) : InterpreterException()
 }
 
+@OptIn(UnsafeDuringIrConstructionAPI::class)
 class Interpreter(
 	val logger: MessageCollector,
 	val irBuiltIns: IrBuiltIns,
@@ -45,7 +48,7 @@ class Interpreter(
 			logger.reportWarning("Was not able to evaluate const eval function: ${e.reason}")
 			return null
 		} catch (e: InterpreterException.StepLimitExsceeded) {
-			logger.reportWarning("Step limi exsceeded while evaluating const function")
+			logger.reportWarning("Step limit exsceeded while evaluating const function")
 			return null
 		} catch (e: InterpreterException) {
 			// The ir is semantically correct, therefore other exceptions should not occur
@@ -68,6 +71,7 @@ class Interpreter(
 	
 	override fun visitReturn(expression: IrReturn, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
+		
 		val value = expression.value.accept(this, data)
 		throw InterpreterException.Return(value)
 	}
@@ -185,17 +189,17 @@ class Interpreter(
 
 	override fun visitExpressionBody(body: IrExpressionBody, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
-		return body.expression.accept(this, Scope(data))
+		return body.expression.accept(this, data)
 	}
 
 	override fun visitBlockBody(body: IrBlockBody, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
-		return interpretStatements(body, Scope(data))
+		return interpretStatements(body, data)
 	}
 
 	override fun visitBlock(expression: IrBlock, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()
-		return interpretStatements(expression, Scope(data))
+		return interpretStatements(expression, data)
 	}
 
 	private fun interpretStatements(block: IrStatementContainer, scope: Scope): Value {
@@ -209,6 +213,12 @@ class Interpreter(
 		}
 		return res!!
 	}
+
+	override fun visitBreak(jump: IrBreak, data: Scope): Value =
+		throw InterpreterException.BreakContinue(jump)
+
+	override fun visitContinue(jump: IrContinue, data: Scope): Value =
+		throw InterpreterException.BreakContinue(jump)
 
 	override fun visitWhileLoop(loop: IrWhileLoop, data: Scope): Value {
 		if (steps++ > maxSteps) throw InterpreterException.StepLimitExsceeded()

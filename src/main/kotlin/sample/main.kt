@@ -1,12 +1,23 @@
 package sample
 
+val Int.kb: Int get() = shl(10)
+
 fun main() {
 	println(evalAdd(3, 2))
 	println(evalHello())
 	println(evalLoop())
 	println(evalNot(false))
 	println(evalRec(12L))
+
+	val kb = 12.kb
+	println(kb)
+
+	val s = "1232"
+	val c = s[2]
+	println("$c, ${s.length}")
 }
+
+fun evalKb(a: Int) = a.kb
 
 fun evalAdd(a: Int, b: Int) = a + b
 
